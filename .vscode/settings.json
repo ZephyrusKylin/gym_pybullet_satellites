@@ -1,0 +1,12 @@
+{
+    "workbench.colorCustomizations": {
+        "editor.lineHighlightBackground": "#1073cf2d",
+        "editor.lineHighlightBorder": "#9fced11f",
+        "activityBar.background": "#1A3317",
+        "titleBar.activeBackground": "#244821",
+        "titleBar.activeForeground": "#F8FCF8"
+    },
+    "cSpell.words": [
+        "pybullet"
+    ]
+}
