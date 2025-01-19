@@ -312,7 +312,7 @@ def change_orbit_trust():
 
 
 def main():
-    change_orbit()
+    ori_env()
 
 if __name__ == '__main__':
     main()
