@@ -312,8 +312,8 @@ def pos_simulation():
 
     # 设置相机视角，调整视距、角度和目标位置
     p.resetDebugVisualizerCamera(
-        cameraDistance=50,  # 调整视距，根据场景大小适配
-        cameraYaw=90,        # 水平旋转角度
+        cameraDistance=60,  # 调整视距，根据场景大小适配
+        cameraYaw=-90,        # 水平旋转角度
         cameraPitch=-60,     # 俯仰角度
         cameraTargetPosition=[0, 0, 0]  # 相机对准地球的中心
     )
@@ -432,8 +432,8 @@ def pos_simulation():
     angle = 0
 
     orbital_enemy_speed = math.sqrt(398600.5 / (orbital_radius_enemy * geo_ratio))  # GEO轨道速度，km/s
-    # speed_factor = 1000  # 调整卫星速度
-    angular_speed_enemy = orbital_enemy_speed / (orbital_radius_enemy * geo_ratio) * speed_factor * 1.2  # 角速度，rad/s
+    speed_factor_enemy = 1000  # 调整卫星速度
+    angular_speed_enemy = orbital_enemy_speed / (orbital_radius_enemy * geo_ratio) * speed_factor_enemy * 4.2  # 角速度，rad/s
     angle_enemy = -math.pi/2
     
     last_x, last_y, last_z = satellite_start_pos
@@ -441,8 +441,8 @@ def pos_simulation():
 
 
     IS_Observer = False
-    speed = 1 #变轨后的速度
-    smooth = 2 #平滑系数，系数越大变轨越平滑
+    speed = 0.5 #变轨后的速度
+    smooth = 9 #平滑系数，系数越大变轨越平滑
     while True:
         # 更新卫星位置
         if not IS_Observer:
@@ -479,7 +479,7 @@ def pos_simulation():
             orbital_radius_change_orbit = orbital_radius
             if contact_points:
                 IS_Observer = True
-                print(f"Collision detected!")
+                print(f"Enemy detected!")
         else:
             # angle += angular_speed * time_step * 1.5
             # orbital_radius_change_orbit = orbital_radius_change_orbit * 0.998
@@ -526,6 +526,31 @@ def pos_simulation():
                 new_y = orbital_radius_enemy * math.sin(angle_enemy)
                 p.resetBasePositionAndOrientation(satellite, [new_x, new_y, 0], satellite_start_orientation)
 
+            contact_points_satellite = p.getContactPoints(bodyA=satellite, bodyB=satellite_enemy)
+            if contact_points_satellite:
+                hitRayColor = [0, 1, 0]
+
+                rayLength = 15          # 激光长度
+                rayNum = 16             # 激光数量
+                rayFroms = [[new_x, new_y, 0] for _ in range(rayNum)]
+                rayTos = [
+                    [
+                        new_x + rayLength * math.cos(2 * math.pi * float(i) / rayNum),
+                        new_y + rayLength * math.sin(2 * math.pi * float(i) / rayNum),
+                        0
+                    ] 
+                for i in range(rayNum)]
+
+                # 调用激光探测函数
+                collapse = p.rayTestBatch(rayFroms, rayTos)
+                
+                # 染色前清楚标记
+                p.removeAllUserDebugItems()
+                for index, _ in enumerate(collapse):
+                    p.addUserDebugLine(rayFroms[index], rayTos[index], hitRayColor)
+                p.removeBody(cone_id)
+                print(f"Collapse detected!")
+                time.sleep(2000)
 
         # 绘制卫星轨迹
         if angle > 0:
