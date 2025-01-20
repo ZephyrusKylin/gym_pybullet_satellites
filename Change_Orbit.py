@@ -276,6 +276,7 @@ def pos_simulation():
 # 启动物理引擎
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
+    print(pybullet_data.getDataPath())
 
     
     # 地球的实际半径（单位：千米）
@@ -289,12 +290,15 @@ def pos_simulation():
     scaling_factor = scaled_earth_radius / earth_model_radius  # 需要缩放的因子
 
     # 加载地球模型并进行缩放
-    earth_id = p.loadURDF("sphere2.urdf", [0, 0, 0], globalScaling=scaling_factor)
+    # earth_id = p.loadURDF("sphere2.urdf", [0, 0, 0], globalScaling=scaling_factor)
 
+    earth_id = p.createCollisionShape(p.GEOM_SPHERE, radius=scaled_earth_radius)
+    earth_body_id = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=earth_id, basePosition=[0, 0, 0])
 
-    collision_shape_data = p.getCollisionShapeData(earth_id, -1)
-    print(collision_shape_data)
-
+    # collision_shape_data = p.getCollisionShapeData(earth_id, -1, )
+    # print(collision_shape_data)
+    # Change Earth's visual appearance to blue
+    p.changeVisualShape(earth_body_id, -1, rgbaColor=[0, 0, 1, 1])
 
 
     if earth_id != -1:
@@ -310,7 +314,7 @@ def pos_simulation():
     p.resetDebugVisualizerCamera(
         cameraDistance=50,  # 调整视距，根据场景大小适配
         cameraYaw=90,        # 水平旋转角度
-        cameraPitch=-30,     # 俯仰角度
+        cameraPitch=-60,     # 俯仰角度
         cameraTargetPosition=[0, 0, 0]  # 相机对准地球的中心
     )
 
@@ -326,7 +330,7 @@ def pos_simulation():
     satellite_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
 
     # 加载卫星模型并缩放
-    satellite_scaling = 1  # 卫星的缩放因子
+    satellite_scaling = 5  # 卫星的缩放因子
     satellite = p.loadURDF("cube_small.urdf", satellite_start_pos, satellite_start_orientation, globalScaling=satellite_scaling)
 
     # collision_shape_data_sat = p.getCollisionShapeData(satellite, -1)
@@ -340,17 +344,18 @@ def pos_simulation():
         print("卫星模型加载失败！")
 
     cone_mesh_path = "./mesh/LedCone_1.stl"
+    # cone_mesh_path = "./mesh/cone.urdf"
     cone_radius = 5
     cone_height = 10
     cone_mass = 0.5
-    cone_scale = [0.5, 0.1, 0.1] 
+    cone_scale = [0.3, 0.2, 0.1] 
     # cone_collision_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=cone_radius, height=cone_height)
     # # cone_visual_shape = p.createVisualShape(p.GEOM_CYLINDER, radius=cone_radius, height=cone_height, rgbaColor=[1, 0, 0, 1])
     # # cone_collision_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=cone_radius, length=cone_height)
     # cone_visual_shape = p.createVisualShape(p.GEOM_CYLINDER, radius=cone_radius, length=cone_height, rgbaColor=[1, 0, 0, 1])
     cone_collision_shape = p.createCollisionShape(p.GEOM_MESH, fileName=cone_mesh_path)
-    cone_visual_shape = p.createVisualShape(p.GEOM_MESH, rgbaColor=[0, 0, 1, 1], specularColor=[1, 1, 1],
-                                         meshScale=cone_scale,fileName=cone_mesh_path)
+    cone_visual_shape = p.createVisualShape(p.GEOM_MESH, rgbaColor=[0, 1, 1, 1], specularColor=[1, 1, 1],
+                                        meshScale=cone_scale,fileName=cone_mesh_path)
 
 
     # 计算锥体姿态，使其法线指向原点
@@ -385,29 +390,30 @@ def pos_simulation():
 
 
 
+    # # 设置敌方卫星初始轨道参数
+    # initial_orbit_altitude = 20000  # 初始轨道高度（单位：km）
+    # initial_orbit_inclination = 15  # 初始轨道倾角（单位：°）
+    # initial_orbit_longitude = 0  # 初始轨道经度（单位：°）
 
+    # # 计算敌方卫星初始位置和速度
+    # initial_position = [0, 0, initial_orbit_altitude + earth_radius]
+    # initial_velocity = [0, math.sqrt(398600.5 / (initial_orbit_altitude + earth_radius)), 0]
 
+    # # 设置缩放后敌方卫星初始轨道参数
+    # initial_orbit_altitude = 20000  # 初始轨道高度（单位：km）
+    # initial_orbit_inclination = 15  # 初始轨道倾角（单位：°）
+    # initial_orbit_longitude = 0  # 初始轨道经度（单位：°）
 
-    # 设置敌方卫星初始轨道参数
-    initial_orbit_altitude = 20000  # 初始轨道高度（单位：km）
-    initial_orbit_inclination = 15  # 初始轨道倾角（单位：°）
-    initial_orbit_longitude = 0  # 初始轨道经度（单位：°）
+    # # 计算缩放后敌方卫星初始位置和速度
+    # initial_position = [0, 0, initial_orbit_altitude + earth_radius]
+    # initial_velocity = [0, math.sqrt(398600.5 / (initial_orbit_altitude + earth_radius)), 0]
+    orbital_radius_enemy = orbital_radius * 0.8
+    satellite_enemy_start_pos = [orbital_radius_enemy, -orbital_radius_enemy, 0]
+    satellite_enemy_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
 
-    # 计算敌方卫星初始位置和速度
-    initial_position = [0, 0, initial_orbit_altitude + earth_radius]
-    initial_velocity = [0, math.sqrt(398600.5 / (initial_orbit_altitude + earth_radius)), 0]
+    satellite_scaling = 5  # 卫星的缩放因子
+    satellite_enemy = p.loadURDF("cube_small.urdf", satellite_enemy_start_pos, satellite_enemy_start_orientation, globalScaling=satellite_scaling)
 
-    # 设置缩放后敌方卫星初始轨道参数
-    initial_orbit_altitude = 20000  # 初始轨道高度（单位：km）
-    initial_orbit_inclination = 15  # 初始轨道倾角（单位：°）
-    initial_orbit_longitude = 0  # 初始轨道经度（单位：°）
-
-    # 计算缩放后敌方卫星初始位置和速度
-    initial_position = [0, 0, initial_orbit_altitude + earth_radius]
-    initial_velocity = [0, math.sqrt(398600.5 / (initial_orbit_altitude + earth_radius)), 0]
-
-    satellite_scaling = 1  # 卫星的缩放因子
-    satellite_enemy = p.loadURDF("cube_small.urdf", satellite_start_pos, satellite_start_orientation, globalScaling=satellite_scaling)
 
     # collision_shape_data_sat = p.getCollisionShapeData(satellite, -1)
     # print(collision_shape_data_sat)
@@ -425,16 +431,107 @@ def pos_simulation():
     angular_speed = orbital_speed / (orbital_radius * geo_ratio) * speed_factor  # 角速度，rad/s
     angle = 0
 
+    orbital_enemy_speed = math.sqrt(398600.5 / (orbital_radius_enemy * geo_ratio))  # GEO轨道速度，km/s
+    # speed_factor = 1000  # 调整卫星速度
+    angular_speed_enemy = orbital_enemy_speed / (orbital_radius_enemy * geo_ratio) * speed_factor * 1.2  # 角速度，rad/s
+    angle_enemy = -math.pi/2
+    
+    last_x, last_y, last_z = satellite_start_pos
+    new_x, new_y, new_z = satellite_start_pos
+
+
+    IS_Observer = False
+    speed = 1 #变轨后的速度
+    smooth = 2 #平滑系数，系数越大变轨越平滑
     while True:
         # 更新卫星位置
-        angle += angular_speed * time_step
-        new_x = orbital_radius * math.cos(angle)
-        new_y = orbital_radius * math.sin(angle)
-        p.resetBasePositionAndOrientation(cone_id, [new_x, new_y, 0], satellite_start_orientation)
+        if not IS_Observer:
+            last_x = new_x
+            last_y = new_y
+            last_z = new_z
+            angle += angular_speed * time_step
+            new_x = orbital_radius * math.cos(angle)
+            new_y = orbital_radius * math.sin(angle)
+            p.resetBasePositionAndOrientation(satellite, [new_x, new_y, 0], satellite_start_orientation)
+
+            #圆锥朝向
+            direction_to_origin = [0 - new_x, 0 - new_y, 0]
+            norm = math.sqrt(direction_to_origin[0]**2 + direction_to_origin[1]**2 + direction_to_origin[2]**2)
+            direction_to_origin = [x / norm for x in direction_to_origin]  # 单位化向量
+
+            # 锥体的朝向
+            yaw = math.atan2(direction_to_origin[1], direction_to_origin[0])
+            pitch = math.atan2(direction_to_origin[2], math.sqrt(direction_to_origin[0]**2 + direction_to_origin[1]**2))
+
+            # 计算四元数来表示旋转
+            cone_orientation_now = p.getQuaternionFromEuler([pitch, 0, yaw])
+            p.resetBasePositionAndOrientation(cone_id, [new_x, new_y, 0], cone_orientation_now)
+
+        angle_enemy += angular_speed_enemy * time_step
+        new_x_enemy = orbital_radius_enemy * math.cos(angle_enemy)
+        new_y_enemy = orbital_radius_enemy * math.sin(angle_enemy)
+        p.resetBasePositionAndOrientation(satellite_enemy, [new_x_enemy, new_y_enemy, 0], satellite_enemy_start_orientation)
+
+
+        contact_points = p.getContactPoints(bodyA=cone_id, bodyB=satellite_enemy)
+        
+        if not IS_Observer:
+            orbital_radius_change_orbit = orbital_radius
+            if contact_points:
+                IS_Observer = True
+                print(f"Collision detected!")
+        else:
+            # angle += angular_speed * time_step * 1.5
+            # orbital_radius_change_orbit = orbital_radius_change_orbit * 0.998
+            # new_x = orbital_radius_change_orbit * math.cos(angle)
+            # new_y = orbital_radius_change_orbit * math.sin(angle)
+            # p.resetBasePositionAndOrientation(satellite, [new_x, new_y, 0], satellite_start_orientation)
+
+
+            last_x = new_x
+            last_y = new_y
+            last_z = new_z
+            #圆锥朝向
+            direction_to_origin = [new_x_enemy - new_x, new_y_enemy - new_y, 0]
+            norm = math.sqrt(direction_to_origin[0]**2 + direction_to_origin[1]**2 + direction_to_origin[2]**2)
+            direction_to_origin = [x / norm for x in direction_to_origin]  # 单位化向量
+
+            # 锥体的朝向
+            yaw = math.atan2(direction_to_origin[1], direction_to_origin[0])
+            pitch = math.atan2(direction_to_origin[2], math.sqrt(direction_to_origin[0]**2 + direction_to_origin[1]**2))
+
+            # 计算四元数来表示旋转
+            cone_orientation_now = p.getQuaternionFromEuler([pitch, 0, yaw])
+            p.resetBasePositionAndOrientation(cone_id, [new_x, new_y, 0], cone_orientation_now)
+            
+            velocity_orientation = np.cross([0,0,1], [new_x, new_y, 0])
+            velocity_orientation_normal = velocity_orientation / np.linalg.norm(velocity_orientation)
+            delta_v_orientation  = smooth * velocity_orientation_normal + direction_to_origin
+            delta_v_orientation_normal = delta_v_orientation / np.linalg.norm(delta_v_orientation)
+
+            delta_new_x = delta_v_orientation_normal[0] * speed
+            delta_new_y = delta_v_orientation_normal[1] * speed
+
+            new_x += delta_new_x
+            new_y += delta_new_y
+
+            if math.sqrt(new_x**2 + new_y**2) > orbital_radius_enemy:
+                p.resetBasePositionAndOrientation(satellite, [new_x, new_y, 0], satellite_start_orientation)
+                
+                angle_end_change = math.atan2(new_y, new_x)
+            else:
+                angular_speed_end_change = speed / (orbital_radius * geo_ratio) * speed_factor  # 角速度，rad/s
+                angle_end_change += angular_speed_end_change * time_step
+                new_x = orbital_radius_enemy * math.cos(angle_enemy)
+                new_y = orbital_radius_enemy * math.sin(angle_enemy)
+                p.resetBasePositionAndOrientation(satellite, [new_x, new_y, 0], satellite_start_orientation)
+
 
         # 绘制卫星轨迹
         if angle > 0:
-            p.addUserDebugLine([new_x, new_y, 0], [orbital_radius * math.cos(angle - angular_speed * time_step), orbital_radius * math.sin(angle - angular_speed * time_step), 0], [1, 0, 0], 200)  # 红色轨迹
+            orbit_length = math.sqrt(new_x**2 + new_y**2)
+            p.addUserDebugLine([new_x, new_y, 0], [last_x, last_y, 0], [1, 0, 0], 5)  # 红色轨迹
+            p.addUserDebugLine([new_x_enemy, new_y_enemy, 0], [orbital_radius_enemy * math.cos(angle_enemy - angular_speed_enemy * time_step), orbital_radius_enemy * math.sin(angle_enemy - angular_speed_enemy * time_step), 0], [0, 0, 1], 5)  # 蓝色轨迹
             # print("卫星位置:", new_x, new_y, 0)
             # print("卫星角度:", angle)
 
@@ -447,6 +544,15 @@ def pos_simulation():
 
         # 步进仿真和暂停
         p.stepSimulation()
+        # P_min, P_max = p.getAABB(satellite_enemy)
+        # id_tuple = p.getOverlappingObjects(P_min, P_max)
+        # if len(id_tuple) > 1:
+        #     for ID, _ in id_tuple:
+        #         if ID == satellite_enemy:
+        #             continue
+        #         else:
+        #             print(f"hit happen! hit object is {p.getBodyInfo(ID)}")
+
         time.sleep(time_step)
 # Example usage
 if __name__ == "__main__":
