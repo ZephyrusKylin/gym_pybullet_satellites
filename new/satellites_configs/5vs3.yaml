@@ -1,0 +1,91 @@
+# scenario_5v3_random.yaml
+# 5v3 多智能体卫星对抗场景（随机簇分布）
+# 位置单位：米，速度单位：米/秒
+
+# 5v3 对抗场景：红蓝簇中心相距 ~2e7 m，支持小时级博弈
+red:
+  - id: 0
+    type: observer
+    initial_position: [42164000.0,   0.0, 100000.0]    # 红簇中心 + 微扰
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    obs_range: 100000.0 
+    obs_dir: [1.0,0,0]
+    radius: 10.0
+
+  - id: 1
+    type: observer
+    initial_position: [42164000.0, 500000.0, -100000.0]
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    obs_range: 100000.0
+    obs_dir: [1.0,0.1,0]
+    radius: 10.0
+
+  - id: 2
+    type: defense
+    initial_position: [41500000.0, 200000.0, -150000.0]  # 红簇内部
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    defense_range: 50000.0
+    radius: 10.0
+
+  - id: 3
+    type: defense
+    initial_position: [42700000.0, -300000.0, 120000.0]
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    defense_range: 50000.0
+    radius: 10.0
+
+  - id: 4
+    type: high_value
+    initial_position: [42164000.0, 100000.0, 0.0]      # 红簇中心
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 1000.0
+    isp: 300.0
+    max_thrust: 0.1
+    radius: 20.0
+
+blue:
+  - id: 5
+    type: strike
+    initial_position: [62164000.0,   0.0, -50000.0]    # 蓝簇中心 ~+2e7 m
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    strike_range: 50000.0
+    radius: 10.0
+
+  - id: 6
+    type: strike
+    initial_position: [62164000.0, 300000.0, 150000.0]
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    strike_range: 50000.0
+    radius: 10.0
+
+  - id: 7
+    type: observer
+    initial_position: [62164000.0, -200000.0, 0.0]
+    initial_velocity: [0.0, 3074.0, 0.0]
+    mass: 500.0
+    isp: 300.0
+    max_thrust: 0.1
+    obs_range: 150000.0
+    obs_dir: [-1.0,0,0]
+    cycle_interval: 60
+    obs_cycle_targets: [0,1,2,3,4]
+    radius: 10.0
+

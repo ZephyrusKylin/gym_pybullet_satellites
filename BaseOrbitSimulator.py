@@ -307,7 +307,10 @@ class BaseOrbitSimulator:
                 # Create satellite visuals in PyBullet
                 satellite_id = p.createCollisionShape(p.GEOM_SPHERE, radius=10 * self.scale * self.satellite_scale)
                 body_id = p.createMultiBody(baseMass=1, baseCollisionShapeIndex=satellite_id, basePosition=self.sat_positions[i] * self.scale)
-                p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])  # Satellites are red
+                if i%2 == 0:
+                    p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])  # Satellites are red
+                else:
+                    p.changeVisualShape(body_id, -1, rgbaColor=[0.5, 1, 0.5, 1])  # Satellites are red
                 self.satellite_ids.append(body_id)
             else:
                 # GEO satellite
@@ -451,5 +454,5 @@ if __name__ == "__main__":
     # simulator = BaseOrbitSimulator(num_satellites=3, scale=0.001, satellite_scale=50.0, track_visualization=True)
     # simulator.visualize(steps=20000, timestep=10)
 
-    simulator = BaseOrbitSimulator(num_satellites=3, scale=0.001, satellite_scale=50.0, track_visualization=True)
+    simulator = BaseOrbitSimulator(num_satellites=6, scale=0.001, satellite_scale=50.0, track_visualization=True)
     simulator.visualize_with_transfer(steps=20000, timestep=10, target_orbit=35786)
