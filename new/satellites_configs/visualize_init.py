@@ -82,69 +82,82 @@ def visualize_satellite_config(config_file):
 
 def simulate_no_thrust(config_file, duration_sec=7200, timestep=10.0):
     """
-    模拟在无推力下卫星轨迹，并可视化运动轨迹
-    :param config_file: YAML 配置文件路径
-    :param duration_sec: 总仿真时长（秒）
-    :param timestep: 每步控制时间步长（秒）
+    模拟无推力下的卫星轨迹，并将整个轨迹绘制成平滑曲线。
     """
-    # 初始化环境
-    env = BaseSatelliteEnv(config_file, timestep=timestep, max_steps=int(duration_sec / timestep))
-    obs, info = env.reset()
+    # 1. 初始化环境
+    env = BaseSatelliteEnv(config_file, timestep=timestep,
+                           max_steps=int(duration_sec / timestep))
+    obs, _ = env.reset()
     n = env.n
     steps = int(duration_sec / timestep)
 
-    # 存储轨迹
-    trajectories = np.zeros((n, steps+1, 3))
+    # 2. 准备矩阵存储位置：shape = (n, steps+1, 3)
+    trajectories = np.zeros((n, steps+1, 3), dtype=float)
     trajectories[:, 0, :] = obs.reshape(n, 9)[:, 0:3]
 
-    # 零推力动作
+    # 3. 定义“零推力”动作
     zero_action = np.zeros((n, 4), dtype=np.float32)
-    # perp 均值方向为无特殊动作
-    zero_action[:, 3] = 0
+    # special_action 已经在 step 中被映射为 0 (no-op)
 
-    # 迭代仿真
+    # 4. 逐步仿真并记录每一步
     for t in range(steps):
-        obs, reward, done, truncated, info = env.step(zero_action)
-        pos = obs.reshape(n,9)[:, 0:3]
-        trajectories[:, t+1, :] = pos
+        obs, _, done, _, _ = env.step(zero_action)
+        positions = obs.reshape(n, 9)[:, 0:3]
+        trajectories[:, t+1, :] = positions
         if done:
+            print(f"Episode terminated at step {t}")
+            trajectories = trajectories[:, :t+2, :]
             break
 
-    # 绘图
-    fig = plt.figure(figsize=(10, 10))
+    # 5. 绘图：先画地球，再画每条轨迹
+    fig = plt.figure(figsize=(10,10))
     ax = fig.add_subplot(111, projection='3d')
 
-    # 绘制地球
-    u = np.linspace(0, 2*np.pi, 60)
-    v = np.linspace(0, np.pi, 30)
+    # 绘制地球表面（与之前相同）
+    u = np.linspace(0, 2*np.pi, 100)
+    v = np.linspace(0, np.pi, 50)
     x = EARTH_RADIUS * np.outer(np.cos(u), np.sin(v))
     y = EARTH_RADIUS * np.outer(np.sin(u), np.sin(v))
     z = EARTH_RADIUS * np.outer(np.ones_like(u), np.cos(v))
-    ax.plot_surface(x, y, z, color='cyan', alpha=0.2, linewidth=0)
+    ax.plot_surface(x, y, z, color='cyan', alpha=0.3, linewidth=0)
 
-    # 轨迹颜色
+    # 绘制各卫星轨迹（与之前相同）
     cmap = plt.get_cmap('tab10')
     for i in range(n):
         traj = trajectories[i]
-        ax.plot(traj[:,0], traj[:,1], traj[:,2], color=cmap(i), label=f'Sat {i}')
-        # 起点和终点标注
-        ax.scatter(*traj[0], color=cmap(i), marker='o')
-        ax.scatter(*traj[-1], color=cmap(i), marker='x')
+        ax.plot(traj[:,0], traj[:,1], traj[:,2],
+                color=cmap(i), linewidth=1.5, label=f'Sat {i}')
+        ax.scatter(*traj[0], color=cmap(i), marker='o', s=50)
+        ax.scatter(*traj[-1], color=cmap(i), marker='X', s=50)
 
-    # 设置视区
+    # —— 以下为关键修正 —— 
+
+    # 方法一：手动屏蔽非有限值后设限
     all_pts = trajectories.reshape(-1,3)
-    mins = all_pts.min(axis=0)
-    maxs = all_pts.max(axis=0)
-    buffer = 5e6
-    ax.set_xlim(mins[0]-buffer, maxs[0]+buffer)
-    ax.set_ylim(mins[1]-buffer, maxs[1]+buffer)
-    ax.set_zlim(mins[2]-buffer, maxs[2]+buffer)
+    finite_mask = np.isfinite(all_pts).all(axis=1)
+    finite_pts = all_pts[finite_mask]
+    if finite_pts.size > 0:
+        mins = finite_pts.min(axis=0)
+        maxs = finite_pts.max(axis=0)
+        pad = (maxs - mins) * 0.1
+        ax.set_xlim(mins[0]-pad[0], maxs[0]+pad[0])
+        ax.set_ylim(mins[1]-pad[1], maxs[1]+pad[1])
+        ax.set_zlim(mins[2]-pad[2], maxs[2]+pad[2])
+    else:
+        # 若所有点都非有限，则退回自动缩放
+        ax.relim()
+        ax.autoscale_view()
+
+    # 或者，方法二：完全依赖自动缩放
+    # ax.relim()
+    # ax.autoscale_view()
+
     ax.set_box_aspect([1,1,1])
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')
+    plt.title('No-Thrust Trajectories Over Time')
     plt.legend()
-    plt.title('Trajectories under No-Thrust Simulation')
     plt.show()
 # 调用示例
 # visualize_satellite_config('scenario_5v3_longrange.yaml')
@@ -161,4 +174,4 @@ if __name__ == "__main__":
     # visualize_satellite_config("5vs3.yaml")
 
 
-    simulate_no_thrust('5vs3.yaml', duration_sec=7200, timestep=10.0)
+    simulate_no_thrust('5vs3.yaml', duration_sec=72000, timestep=10.0)

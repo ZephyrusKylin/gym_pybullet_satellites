@@ -1,0 +1,30 @@
+satellites:
+  - id: sat_obs1
+    role: observer
+    position: [4.2e7, 0.0, 0.0]
+    velocity: [0.0, 3.0e3, 0.0]
+
+  - id: sat_obs2
+    role: observer
+    position: [0.0, 4.2e7, 0.0]
+    velocity: [-3.0e3, 0.0, 0.0]
+
+  - id: sat_obs3
+    role: observer
+    position: [-4.2e7, 0.0, 0.0]
+    velocity: [0.0, -3.0e3, 0.0]
+
+  - id: sat_enemy
+    role: enemy
+    position: [3.8e7, 3.8e7, 0.0]
+    velocity: [-1.5e3, -1.5e3, 0.0]
+
+  - id: sat_defender
+    role: defender
+    position: [4.2e7, 4.2e7, 0.0]
+    velocity: [-2.0e3, -1.0e3, 0.0]
+
+  - id: sat_hvt
+    role: high_value
+    position: [4.4e7, -1.0e7, 0.0]
+    velocity: [1.0e3, 2.0e3, 0.0]
