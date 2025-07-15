@@ -471,6 +471,12 @@ def visualize_multiple_animated_trajectories(directory_path, group_map=None, tim
     ax.ticklabel_format(style='sci', axis='both', scilimits=(0,0))
     ax.grid(True, linestyle='--', alpha=0.5)
 
+    # ax.view_init(elev=30, azim=-60)  # 这是一个类似默认视角的好选择
+    # ax.view_init(elev=30, azim=60)  # 这是一个类似默认视角的好选择
+    ax.view_init(elev=90, azim=0)      # 示例：正上方向下的俯视角
+    # ax.view_init(elev=0, azim=-90)     # 示例：从Y轴正方向看的侧视角
+    # ax.view_init(elev=45, azim=45)      # 示例：正上方向下的俯视角
+
     ax.tick_params(axis='x', labelsize=20)
     ax.tick_params(axis='y', labelsize=20)
     ax.tick_params(axis='z', labelsize=20)
@@ -528,7 +534,8 @@ def visualize_multiple_animated_trajectories(directory_path, group_map=None, tim
 
 
 if __name__ == '__main__':
-    directory_to_visualize = 'H:\\old_D\Work\\501_平台\\数据-星图-第一版\\501\\scene2\\show1'
+    # directory_to_visualize = 'H:\\old_D\Work\\501_平台\\数据-星图-第一版\\501\\scene2\\show1'
+    directory_to_visualize = 'H:\\old_D\Work\\501_平台\\数据-星图-第一版\\501\\quene'
     original_file_for_demo = 'antisatellite1_Fixed_Position_Velocity.txt'
     # custom_color_map = {
     #     '自主决策生成轨迹': {'color': 'red', 'label': '自主决策生成轨迹'},
@@ -540,32 +547,94 @@ if __name__ == '__main__':
     #     '敌方观测星': {'color': 'blue', 'label': '敌方卫星轨迹'},
     #     '敌方预计袭扰目标': {'color': 'purple', 'label': '敌方预计袭扰目标'},
     # }
-    group_assignments = {
-        '防御卫星': 'group1',
-        # '人工干预计算轨迹': 'group1',
-        '我方观测星1': 'group1',
-        '我方观测星2': 'group1',
-        '我方观测星3': 'group1',
-        '我方观测星4': 'group1',
-        '我方观测星5': 'group1',
-        '我方观测星6': 'group1',
-        '我方观测星7': 'group1',
-        '我方观测星8': 'group1',
-        '我方观测星9': 'group1',
-        '我方观测星10': 'group1',
+    # group_assignments = {
+    #     '防御卫星': 'group1',
+    #     # '人工干预计算轨迹': 'group1',
+    #     '我方观测星1': 'group1',
+    #     '我方观测星2': 'group1',
+    #     '我方观测星3': 'group1',
+    #     '我方观测星4': 'group1',
+    #     '我方观测星5': 'group1',
+    #     '我方观测星6': 'group1',
+    #     '我方观测星7': 'group1',
+    #     '我方观测星8': 'group1',
+    #     '我方观测星9': 'group1',
+    #     '我方观测星10': 'group1',
 
-        '我方观测星11': 'group1',
-        '我方悬停卫星': 'group1',
-        '敌方悬停星': 'group2',
-        '敌方观测星1': 'group2',
-        '敌方观测星2': 'group2',
-        '敌方攻击星': 'group2',
+    #     '我方观测星11': 'group1',
+    #     '我方悬停卫星': 'group1',
+    #     '敌方悬停星': 'group2',
+    #     '敌方观测星1': 'group2',
+    #     '敌方观测星2': 'group2',
+    #     '敌方攻击星': 'group2',
+    # }
+    # group_assignments = {
+    #     # 'blue_approach_Velocity': 'group1',
+    #     # '人工干预计算轨迹': 'group1',
+    #     'Blue_strike': 'group2',
+    #     # 'Blue_strike_om1': 'group1',
+    #     'Observation_backy': 'group2',
+    #     '我方观测星4': 'group1',
+    #     '我方观测星5': 'group1',
+    #     '我方观测星6': 'group1',
+    #     '我方观测星7': 'group1',
+    #     '我方观测星8': 'group1',
+    #     '我方观测星9': 'group1',
+    #     '我方观测星10': 'group1',
+
+    #     '我方悬停卫星': 'group1',
+    #     'Observation1': 'group1',
+    #     'Observation2': 'group1',
+    #     'Observation3': 'group1',
+    #     '敌方攻击星': 'group2',
+    # }
+    # group_assignments = {
+    #     # 'blue_approach_Velocity': 'group1',
+    #     # '人工干预计算轨迹': 'group1',
+    #     # 'antisatellite1': 'group2',
+    #     # # 'Blue_strike_om1': 'group1',
+    #     # 'antisatellite2': 'group2',
+    #     # 'antisatellite3': 'group2',
+    #     '防御卫星': 'group1',
+    #     # '我方观测星6': 'group1',
+    #     # '我方观测星7': 'group1',
+    #     '我方观测星9': 'group1',
+    #     '我方观测星11': 'group1',
+    #     '我方观测星10': 'group1',
+
+    #     # '我方悬停卫星': 'group1',
+    #     # 'Observation1': 'group1',
+    #     # 'Observation2': 'group1',
+    #     '敌方攻击星2': 'group2',
+    #     '敌方攻击星': 'group2',
+    # }
+    group_assignments = {
+        # 'blue_approach_Velocity': 'group1',
+        # '人工干预计算轨迹': 'group1',
+        # 'antisatellite1': 'group2',
+        # # 'Blue_strike_om1': 'group1',
+        # 'antisatellite2': 'group2',
+        # 'antisatellite3': 'group2',
+        # '防御卫星': 'group1',
+        # '我方观测星6': 'group1',
+        # '我方观测星7': 'group1',
+        '1': 'group1',
+        '2': 'group1',
+        # '3': 'group1',
+        '6': 'group1',
+        '11': 'group2',
+        # '20': 'group2',
+
+        # '我方悬停卫星': 'group1',
+        # 'Observation1': 'group1',
+        # 'Observation2': 'group1',
+        # '敌方攻击星2': 'group2',
+        # '敌方攻击星': 'group2',
     }
-    
     # 运行可视化
     visualize_multiple_animated_trajectories(
             directory_to_visualize,
             group_map=group_assignments, # 传递颜色地图
-            time_scale_factor=13, 
+            time_scale_factor=10, 
             interval=2
         )
