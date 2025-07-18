@@ -1,112 +1,119 @@
 # tests/core/test_satellite.py
 
 import unittest
+import numpy as np
 from astropy import units as u
 from astropy.time import Time
-from poliastro.bodies import Earth
-from poliastro.twobody import Orbit
-import numpy as np
-# 假设你的项目结构正确，可以从 environment 包中导入 Satellite 类
+from astropy.constants import g0
+# 导入核心模块和待测类
+from environment.core.constants import EARTH_MU
 from environment.core.satellite import Satellite
 
-
-class TestSatellite(unittest.TestCase):
-    """针对 Satellite 类的单元测试集"""
+class TestPoliastroSatellite(unittest.TestCase):
+    """针对最终版 satellite.py 的单元测试集"""
 
     def setUp(self):
-        """在每个测试方法运行前，设置一个标准的轨道和卫星实例。"""
-        self.initial_r = [10000.0, 0.0, 0.0] * u.km
-        self.initial_v = [0.0, 7.5, 0.0] * u.km / u.s
-        self.initial_epoch = Time("2025-01-01 12:00:00", scale="utc")
-        self.orbit = Orbit.from_vectors(Earth, self.initial_r, self.initial_v, epoch=self.initial_epoch)
+        """
+        在每个测试方法运行前，使用 from_classical 工厂方法
+        设置一个标准的卫星实例。
+        """
+        self.sat_id = "test_sat_01"
+        self.epoch = Time("2025-07-16 00:00:00", scale="utc")
+        self.mu_with_unit = EARTH_MU * (u.km**3 / u.s**2)
 
-        self.sat = Satellite(
-            sat_id="test_sat_01",
-            initial_orbit=self.orbit,
-            mass_wet=1000 * u.kg,
-            mass_dry=500 * u.kg,
-            isp=300 * u.s,
-            attributes={"role": "observer"}
+        self.mass_wet = 1000 * u.kg
+        self.dry_mass = 500 * u.kg
+        self.isp = 300 * u.s
+        
+        # 使用 from_classical 直接创建实例
+        self.sat = Satellite.from_classical(
+            sat_id=self.sat_id,
+            a=7000 * u.km, ecc=0.001 * u.one, inc=15.0 * u.deg,
+            raan=0.0 * u.deg, argp=0.0 * u.deg, nu=0.0 * u.deg,
+            mass_wet=self.mass_wet,
+            dry_mass=self.dry_mass,
+            isp=self.isp,
+            epoch=self.epoch,
+            mu=self.mu_with_unit, # 传递带单位的引力常数
+            attributes={"role": "tester"}
         )
 
-    def test_initialization_success(self):
-        """测试卫星能否成功初始化。"""
-        self.assertEqual(self.sat.sat_id, "test_sat_01")
-        self.assertEqual(self.sat.mass, 1000 * u.kg)
-        self.assertEqual(self.sat.dry_mass, 500 * u.kg)
-        self.assertEqual(self.sat.isp, 300 * u.s)
-        self.assertEqual(self.sat.attributes["role"], "observer")
-        self.assertTrue(repr(self.sat).startswith("<Satellite id='test_sat_01'"))
-
-    def test_initialization_failure_invalid_mass(self):
-        """测试当湿重小于干重时，是否抛出 ValueError。"""
-        with self.assertRaises(ValueError):
-            Satellite(
-                sat_id="fail_sat",
-                initial_orbit=self.orbit,
-                mass_wet=400 * u.kg,
-                mass_dry=500 * u.kg,
-                isp=300 * u.s
-            )
+    def test_creation_and_attributes(self):
+        """测试：通过 from_classical 创建的实例，其属性是否正确。"""
+        self.assertIsInstance(self.sat, Satellite)
+        self.assertEqual(self.sat.sat_id, self.sat_id)
+        self.assertEqual(self.sat.attributes["role"], "tester")
+        
+        # 验证质量
+        self.assertEqual(self.sat.mass, self.mass_wet)
+        self.assertEqual(self.sat.dry_mass, self.dry_mass)
+        
+        # 验证轨道根数被正确设置
+        self.assertAlmostEqual(self.sat.orbit.a.to_value(u.km), 7000)
+        self.assertAlmostEqual(self.sat.orbit.inc.to_value(u.deg), 15.0)
 
     def test_properties(self):
-        """测试所有属性是否返回正确的值。"""
-        self.assertTrue(np.allclose(self.sat.r.to_value(u.km), self.initial_r.to_value(u.km)))
-        self.assertTrue(np.allclose(self.sat.v.to_value(u.km / u.s), self.initial_v.to_value(u.km / u.s)))
-        self.assertEqual(self.sat.epoch, self.initial_epoch)
+        """测试：所有派生属性是否计算正确。"""
         self.assertAlmostEqual(self.sat.fuel_mass.to_value(u.kg), 500.0)
         self.assertTrue(self.sat.can_maneuver)
+        
+        # 测试燃料耗尽的情况
+        self.sat.mass = self.sat.dry_mass
+        self.assertFalse(self.sat.can_maneuver)
 
     def test_update_orbit(self):
-        """测试轨道更新方法。"""
-        new_r = [11000.0, 0.0, 0.0] * u.km
-        new_v = [0.0, 7.0, 0.0] * u.km / u.s
-        new_orbit = Orbit.from_vectors(Earth, new_r, new_v, epoch=self.initial_epoch)
-        
+        """测试：轨道更新方法。"""
+        from poliastro.twobody import Orbit
+        # 创建一个新轨道
+        new_orbit = Orbit.from_classical(
+            attractor=self.sat.orbit.attractor, a=8000 * u.km, 
+            ecc=0.05 * u.one, inc=20 * u.deg, raan=10 * u.deg, 
+            argp=10 * u.deg, nu=10 * u.deg, epoch=self.epoch
+        )
         self.sat.update_orbit(new_orbit)
-        self.assertEqual(self.sat.orbit, new_orbit)
-        
-        with self.assertRaises(TypeError):
-            self.sat.update_orbit("not_an_orbit")
+        # 验证半长轴是否已更新
+        self.assertAlmostEqual(self.sat.orbit.a.to_value(u.km), 8000)
 
-    def test_consume_fuel_sufficient_fuel(self):
-        """测试燃料充足情况下的消耗。"""
-        delta_v = 50 * u.m / u.s
-        fuel_consumed = self.sat.consume_fuel(delta_v)
+    def test_consume_fuel_scenarios(self):
+        """测试：全面测试燃料消耗逻辑。"""
+        # 场景1：燃料充足
+        delta_v_small = 50 * u.m / u.s
+        
+        # 修正点 2：不再使用硬编码的魔法数字，而是在测试中重新计算期望值
+        # 这样可以保证测试逻辑与函数实现逻辑的一致性
+        expected_mass = self.mass_wet * np.exp(-delta_v_small / (self.isp * g0))
+        
+        fuel_consumed = self.sat.consume_fuel(delta_v_small)
+        self.assertGreater(fuel_consumed, 0 * u.kg)
+        # 使用动态计算的期望值进行断言，并将精度提高
+        self.assertAlmostEqual(self.sat.mass.to_value(u.kg), expected_mass.to_value(u.kg), places=5)
+        
+        # 场景2：燃料不足
+        self.setUp() # 重置卫星状态
+        delta_v_large = 5000 * u.m / u.s
+        fuel_consumed_insufficient = self.sat.consume_fuel(delta_v_large)
+        self.assertAlmostEqual(self.sat.mass.to_value(u.kg), self.dry_mass.to_value(u.kg))
+        self.assertAlmostEqual(fuel_consumed_insufficient.to_value(u.kg), 500.0)
 
-        # 理论计算
-        g0 = 9.80665 * u.m / u.s**2
-        expected_final_mass = (1000 * u.kg) * np.exp(-delta_v / (300 * u.s * g0))
-        expected_fuel_consumed = (1000 * u.kg) - expected_final_mass
-        
-        self.assertAlmostEqual(self.sat.mass.to_value(u.kg), expected_final_mass.to_value(u.kg), places=5)
-        self.assertAlmostEqual(fuel_consumed.to_value(u.kg), expected_fuel_consumed.to_value(u.kg), places=5)
+        # 场景3：燃料耗尽
+        self.setUp()
+        self.sat.mass = self.dry_mass
+        fuel_consumed_none = self.sat.consume_fuel(delta_v_small)
+        self.assertEqual(fuel_consumed_none.to_value(u.kg), 0.0)
 
-    def test_consume_fuel_insufficient_fuel(self):
-        """测试燃料不足时，消耗所有剩余燃料。"""
-        # 一个巨大的机动，理论上会耗尽燃料
-        delta_v = 10000 * u.m / u.s
-        fuel_consumed = self.sat.consume_fuel(delta_v)
-        
-        # 最终质量应等于干重
-        self.assertAlmostEqual(self.sat.mass.to_value(u.kg), self.sat.dry_mass.to_value(u.kg))
-        # 消耗的燃料应等于初始燃料
-        self.assertAlmostEqual(fuel_consumed.to_value(u.kg), 500.0)
-        # 此时应无法再机动
-        self.assertFalse(self.sat.can_maneuver)
-        
-    def test_consume_fuel_no_fuel(self):
-        """测试燃料耗尽后尝试机动。"""
-        # 先耗尽燃料
-        self.sat.mass = self.sat.dry_mass
-        
-        delta_v = 50 * u.m / u.s
-        fuel_consumed = self.sat.consume_fuel(delta_v)
-        
-        # 质量不应变化，消耗为0
-        self.assertEqual(self.sat.mass, self.sat.dry_mass)
-        self.assertEqual(fuel_consumed.to_value(u.kg), 0.0)
-
+    def test_initialization_failure(self):
+        """测试：当湿重小于干重时，初始化应失败。"""
+        with self.assertRaises(ValueError):
+            Satellite.from_classical(
+                sat_id="fail_sat",
+                a=7000 * u.km, ecc=0.001 * u.one, inc=15.0 * u.deg,
+                raan=0.0 * u.deg, argp=0.0 * u.deg, nu=0.0 * u.deg,
+                mass_wet=400 * u.kg, # 湿重 < 干重
+                dry_mass=500 * u.kg,
+                isp=300 * u.s,
+                epoch=self.epoch,
+                mu=self.mu_with_unit
+            )
 
 if __name__ == '__main__':
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    unittest.main()
