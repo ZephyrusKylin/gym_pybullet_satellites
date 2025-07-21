@@ -115,5 +115,71 @@ class TestPoliastroSatellite(unittest.TestCase):
                 mu=self.mu_with_unit
             )
 
+    def test_fuel_mass_needed_standard_burn(self):
+        """
+        测试：标准机动的燃料需求计算是否准确，且不改变卫星状态。
+        含义：验证方法的核心数学逻辑和“只读”特性。
+        """
+        delta_v = 100 * u.m / u.s
+        
+        # 手动计算理论值，用于验证
+        m0 = self.mass_wet.to_value(u.kg)
+        dv = delta_v.to_value(u.m / u.s)
+        isp = self.isp.to_value(u.s)
+        g0_val = g0.to_value(u.m / u.s**2)
+        
+        m_final_ideal = m0 * np.exp(-dv / (isp * g0_val))
+        expected_fuel_needed = (m0 - m_final_ideal) * u.kg
+
+        # 调用待测试方法
+        fuel_needed = self.sat.fuel_mass_needed(delta_v)
+
+        # 1. 断言：计算结果是否与理论值足够接近
+        self.assertAlmostEqual(fuel_needed.to_value(u.kg), expected_fuel_needed.to_value(u.kg), places=4)
+
+        # 2. 断言：卫星的总质量是否保持不变 (核心契约)
+        self.assertEqual(self.sat.mass, self.mass_wet, "调用后卫星质量不应改变")
+
+    def test_fuel_mass_needed_zero_burn(self):
+        """
+        测试：零机动的燃料需求是否精确为零。
+        含义：验证“零输入”这个边界条件的正确性。
+        """
+        delta_v = 0 * u.m / u.s
+        fuel_needed = self.sat.fuel_mass_needed(delta_v)
+        
+        # 1. 断言：结果是否精确为零
+        self.assertEqual(fuel_needed.to_value(u.kg), 0.0)
+
+        # 2. 断言：卫星状态是否未受影响
+        self.assertEqual(self.sat.mass, self.mass_wet)
+
+    def test_fuel_mass_needed_exceeds_available_fuel(self):
+        """
+        测试：当理论需求超过可用燃料时，方法是否依然返回理论值。
+        含义：验证该方法是一个纯粹的“理论计算器”，其计算不受卫星当前状态（燃料存量）的限制。
+        """
+        # 一个会耗尽所有燃料(500kg)的 delta_v 大约是 2.03 km/s
+        # 我们请求一个更大的机动
+        delta_v = 3 * u.km / u.s
+        
+        # 计算这个巨大机动的理论燃料需求
+        m0 = self.mass_wet.to_value(u.kg)
+        dv = delta_v.to_value(u.m / u.s)
+        isp = self.isp.to_value(u.s)
+        g0_val = g0.to_value(u.m / u.s**2)
+        m_final_ideal = m0 * np.exp(-dv / (isp * g0_val))
+        expected_fuel_needed = (m0 - m_final_ideal) * u.kg
+        
+        # 调用方法
+        fuel_needed = self.sat.fuel_mass_needed(delta_v)
+        
+        # 1. 断言：返回的依然是不受限制的理论值，而不是可用燃料量
+        self.assertTrue(fuel_needed > self.sat.fuel_mass, "返回的值应为理论值，而非可用燃料")
+        self.assertAlmostEqual(fuel_needed.to_value(u.kg), expected_fuel_needed.to_value(u.kg), places=4)
+
+        # 2. 断言：卫星状态依然纹丝不动
+        self.assertEqual(self.sat.mass, self.mass_wet)
+
 if __name__ == '__main__':
     unittest.main()

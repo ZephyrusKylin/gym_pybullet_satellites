@@ -194,7 +194,14 @@ class Satellite:
     def update_orbit(self, new_orbit: Orbit):
         """直接更新卫星的轨道状态。"""
         self.orbit = new_orbit
-
+    def fuel_mass_needed(self, delta_v_magnitude: u.Quantity) -> u.Quantity:
+        """根据给定的速度增量大小，计算所需的燃料质量，但不消耗。"""
+        if delta_v_magnitude.value == 0:
+            return 0 * u.kg
+        dv_scalar = delta_v_magnitude.to_value(u.m / u.s) * u.m / u.s
+        m_initial = self.mass
+        m_final_ideal = m_initial * np.exp(-dv_scalar / (self.isp * g0))
+        return (m_initial - m_final_ideal).to(u.kg)
     def consume_fuel(self, delta_v_magnitude: u.Quantity):
         """根据给定的速度增量大小，计算并消耗燃料。"""
         if not self.can_maneuver: return 0 * u.kg

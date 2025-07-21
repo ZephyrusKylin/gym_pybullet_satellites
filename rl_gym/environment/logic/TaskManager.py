@@ -9,7 +9,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Set, Callable
 from enum import Enum, auto
 
 from astropy.time import Time, TimeDelta
@@ -58,6 +58,21 @@ class TaskManager:
         # 核心设计：一个卫星在同一时间只能执行一个任务
         self.active_tasks: Dict[str, ActiveTask] = {}
 
+    def _validate_plan(self, plan: ManeuverPlan) -> bool:
+        if not plan or not plan.maneuvers:
+            return False
+        
+        # 检查执行时间顺序
+        for i in range(1, len(plan.maneuvers)):
+            if plan.maneuvers[i].execution_time <= plan.maneuvers[i-1].execution_time:
+                return False
+        
+        # 检查delta_v有效性
+        for maneuver in plan.maneuvers:
+            if np.any(np.isnan(maneuver.delta_v.value)):
+                return False
+        
+        return True
     def add_task(self, satellite_id: str, plan: ManeuverPlan, force: bool = False) -> bool:
         """
         为一个卫星分配一个新任务，可选择强制覆盖当前任务。
@@ -71,6 +86,8 @@ class TaskManager:
         Returns:
             bool: 如果成功添加任务则返回 True。
         """
+        if not self._validate_plan(plan):
+            return False
         if self.is_busy(satellite_id):
             if force:
                 print(f"警告: 卫星 '{satellite_id}' 已有任务，执行强制替换。")
@@ -114,91 +131,84 @@ class TaskManager:
             print(f"信息: 中断并取消卫星 '{satellite_id}' 的当前任务。")
             return True
         return False
-    def update(self, satellites: Dict[str, Satellite], current_time: Time, dt: TimeDelta):
-        """
-        更新所有活动任务的状态，并在需要时执行机动。
-        这是 TaskManager 的核心方法，应在仿真主循环的每个时间步被调用。
+# TaskManager.py (最终的、决定性的修正)
 
-        Args:
-            satellites (Dict[str, Satellite]): 仿真世界中所有卫星对象的字典。
-            current_time (Time): 当前仿真时间。
-            dt (TimeDelta): 当前仿真步长。
+    def update(self, satellites, current_time, dt, propagator_func=None):
         """
-        # 创建一个待移除任务的列表，避免在迭代过程中修改字典
-        completed_or_failed_tasks: List[str] = []
-
-        # 遍历当前所有活动任务
-        for sat_id, task in self.active_tasks.items():
+        改进的update方法，使用更精确的时间处理
+        """
+        propagate = propagator_func if propagator_func is not None else (lambda orbit, time: orbit.propagate(time))
+        completed_or_failed_tasks = []
+        handled_satellite_ids = set()
+        
+        for sat_id, task in self.active_tasks.copy().items():
             if not task.pending_maneuvers:
-                # 如果没有待处理的机动，说明任务已完成
                 task.status = TaskStatus.COMPLETED
                 completed_or_failed_tasks.append(sat_id)
-                print(f"信息: 卫星 '{sat_id}' 的任务已完成。")
                 continue
 
-            # 获取下一个将要执行的机动
             next_maneuver = task.pending_maneuvers[0]
             
-            # 检查下一个机动的执行时间是否落在当前时间步之内
-            if current_time <= next_maneuver.execution_time < current_time + dt:
-                
+            # 改进：使用更精确的时间窗口判断
+            step_start = current_time
+            step_end = current_time + dt
+            burn_time = next_maneuver.execution_time
+            
+            # 只有当机动时间在当前步长内时才执行
+            if step_start <= burn_time < step_end:
                 satellite = satellites.get(sat_id)
                 if not satellite:
-                    print(f"错误: 找不到ID为 '{sat_id}' 的卫星来执行任务。")
                     task.status = TaskStatus.FAILED
                     completed_or_failed_tasks.append(sat_id)
                     continue
 
-                print(f"执行: 卫星 '{sat_id}' 在 {current_time} 执行机动。")
-                
-                # --- 核心执行逻辑 ---
-                # # 1. 计算所需速度增量的大小
-                # delta_v_vec = next_maneuver.delta_v
-                # delta_v_mag = (sum(dv**2 for dv in delta_v_vec))**0.5
-                # 1. 计算从当前时刻到精确点火时刻的时间差
-                time_to_burn = next_maneuver.execution_time - current_time
-                # 2. 将卫星精确传播到点火时刻
-                orbit_at_burn_time = satellite.orbit.propagate(time_to_burn)
-                # 3. 在精确的时刻和状态上，施加脉冲
+                # 燃料检查
                 delta_v_vec = next_maneuver.delta_v
-                new_velocity = orbit_at_burn_time.v + delta_v_vec
-                
-                # 4. 用点火时刻的真实状态，创建新的轨道
-                new_orbit = Orbit.from_vectors(
-                    attractor=orbit_at_burn_time.attractor,
-                    r=orbit_at_burn_time.r,  # 使用点火时刻的位置
-                    v=new_velocity,          # 使用点火后的速度
-                    epoch=orbit_at_burn_time.epoch # 历元也来自点火时刻
-                )
-                satellite.update_orbit(new_orbit)
-                # 5. 检查燃料并消耗 (这部分逻辑不变，但我们顺便修复一个次要bug) 
-                # 修正：使用np.linalg.norm正确计算带单位的矢量大小
                 delta_v_mag = np.linalg.norm(delta_v_vec)
-                if not satellite.can_maneuver or satellite.fuel_mass < satellite.consume_fuel(delta_v_mag):
-                    print(f"失败: 卫星 '{sat_id}' 燃料耗尽，无法执行机动。")
+                fuel_needed = satellite.fuel_mass_needed(delta_v_mag)
+
+                if not satellite.can_maneuver or satellite.fuel_mass < fuel_needed:
                     task.status = TaskStatus.FAILED
                     completed_or_failed_tasks.append(sat_id)
                     continue
-                
-                fuel_consumed = satellite.consume_fuel(delta_v_mag)
-                print(f"  - 消耗燃料: {fuel_consumed:.4f}")
-                # 注意：一个更复杂的模型可以在燃料不足时执行部分机动
 
+                # 改进：更精确的轨道传播
+                # 1. 传播到精确的点火时刻
+                time_to_burn = burn_time - step_start
+                orbit_at_burn = propagate(satellite.orbit, time_to_burn)
                 
-                # 4. 从任务中移除已执行的机动
+                # 2. 施加机动
+                new_velocity = orbit_at_burn.v + delta_v_vec
+                orbit_after_burn = Orbit.from_vectors(
+                    attractor=orbit_at_burn.attractor,
+                    r=orbit_at_burn.r,
+                    v=new_velocity,
+                    epoch=burn_time  # 使用精确的点火时间
+                )
+                
+                # 3. 传播到步长结束
+                remaining_time = step_end - burn_time
+                if remaining_time.to_value('s') > 0:
+                    final_orbit = propagate(orbit_after_burn, remaining_time)
+                else:
+                    final_orbit = orbit_after_burn
+                
+                # 4. 更新卫星状态
+                satellite.update_orbit(final_orbit)
+                satellite.consume_fuel(delta_v_mag)
+                handled_satellite_ids.add(sat_id)
+                
+                # 5. 更新任务状态
                 task.pending_maneuvers.pop(0)
-                
-                # --- 新增的修正逻辑 ---
-                # 5. 立刻检查任务是否已经完成
                 if not task.pending_maneuvers:
-                    # 如果待办列表已空，说明这是最后一次机动
                     task.status = TaskStatus.COMPLETED
-                    # 立刻将其加入待清理列表
                     completed_or_failed_tasks.append(sat_id)
                 else:
-                    # 如果列表非空，说明还有后续机动
                     task.status = TaskStatus.IN_PROGRESS
 
-        # 清理已完成或失败的任务
+        # 清理完成的任务
         for sat_id in completed_or_failed_tasks:
-            del self.active_tasks[sat_id]
+            if sat_id in self.active_tasks:
+                del self.active_tasks[sat_id]
+                
+        return handled_satellite_ids
